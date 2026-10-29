@@ -1,0 +1,2350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concilig - Ponto Eletrônico & Gestão em Tempo Real</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            concilig: {
+              cyan: '#00AFD8',
+              cyanDark: '#008EB0',
+              cyanHover: '#009EC4',
+              cyanLight: '#E8F8FC',
+              dark: '#111827',
+              slate: '#1E293B',
+              border: '#E2E8F0',
+              bgLight: '#F8FAFC'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Montserrat', sans-serif;
+    }
+    .font-mono-num {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #00AFD8;
+      border-radius: 4px;
+    }
+    .pulse-danger {
+      animation: pulse-ring-red 2s infinite;
+    }
+    @keyframes pulse-ring-red {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+  </style>
+</head>
+<body class="bg-concilig-bgLight text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- ============================================== -->
+  <!-- BARRA DE STATUS MULTI-MÁQUINAS / CONEXÃO       -->
+  <!-- ============================================== -->
+  <div class="bg-concilig-dark text-white text-[11px] font-semibold px-4 py-1.5 flex items-center justify-between border-b border-slate-800">
+    <div class="flex items-center gap-2">
+      <span id="connStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+      <span id="connStatusText">Iniciando conexão de sincronização...</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="hidden sm:inline text-slate-400" id="syncStatsText">Aguardando dados...</span>
+      <button onclick="app.openFirebaseConfigModal()" class="px-2.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition flex items-center gap-1 font-bold">
+        <i data-lucide="cloud-cog" class="w-3.5 h-3.5 text-concilig-cyan"></i>
+        <span>Configurar Nuvem (Firebase)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- HEADER PRINCIPAL CONCILIG                      -->
+  <!-- ============================================== -->
+  <header class="bg-white border-b border-concilig-border sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-2.5 flex items-center justify-between">
+      
+      <!-- Logotipo Estilizado Concilig -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2.5 cursor-pointer" onclick="app.showTerminalLogin()">
+          <svg class="w-10 h-10 text-concilig-cyan shrink-0" viewBox="0 0 100 100" fill="currentColor">
+            <path d="M 50 18 C 28 18 14 31 14 48 C 14 59 21 69 33 74 L 30 84 C 29.5 85.5 31.5 86.8 32.8 85.8 L 47 77.8 C 48 77.9 49 78 50 78 C 72 78 86 65 86 48 C 86 31 72 18 50 18 Z M 50 33 C 63 33 71 40 71 48 C 71 56 63 63 50 63 C 48 63 46 62.7 44.2 62.2 L 38 65.6 L 39.5 60.5 C 33 58 29 53.5 29 48 C 29 40 37 33 50 33 Z"/>
+          </svg>
+          <div class="flex flex-col">
+            <span class="text-2xl font-black tracking-tight text-concilig-dark leading-none lowercase" style="letter-spacing: -0.04em;">concilig</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-concilig-cyan mt-0.5">Ponto & Gestão em Tempo Real</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Relógio Central -->
+      <div class="hidden md:flex items-center gap-3 bg-concilig-cyanLight border border-concilig-cyan/30 px-4 py-1.5 rounded-full shadow-inner">
+        <i data-lucide="calendar" class="w-4 h-4 text-concilig-cyanDark"></i>
+        <span id="currentDateDisplay" class="text-xs font-semibold text-slate-700">--/--/----</span>
+        <span class="text-concilig-cyan/50">|</span>
+        <i data-lucide="clock" class="w-4 h-4 text-concilig-cyan"></i>
+        <span id="currentTimeDisplay" class="text-sm font-bold font-mono-num text-concilig-dark">00:00:00</span>
+      </div>
+
+      <!-- Botões de Modo -->
+      <div class="flex items-center gap-2">
+        <button id="btnSwitchToTerminal" onclick="app.showTerminalLogin()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+          <span>Terminal Operador</span>
+        </button>
+        <button id="btnSwitchToSupervisor" onclick="app.promptSupervisorLogin()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5">
+          <i data-lucide="shield" class="w-4 h-4"></i>
+          <span>Painel Supervisão</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Container de Toasts/Notificações -->
+  <div id="toastContainer" class="fixed top-24 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- ============================================== -->
+    <!-- MODO 1: TERMINAL DO OPERADOR (LOGIN PIN)       -->
+    <!-- ============================================== -->
+    <div id="viewTerminalLogin" class="max-w-md mx-auto mt-6">
+      <div class="bg-white rounded-3xl shadow-xl border border-concilig-border p-6 sm:p-9 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-concilig-cyan to-concilig-cyanDark"></div>
+
+        <div class="text-center mb-7">
+          <div class="inline-flex p-3 rounded-2xl bg-concilig-cyanLight text-concilig-cyan mb-3 shadow-inner">
+            <svg class="w-12 h-12" viewBox="0 0 100 100" fill="currentColor">
+              <path d="M 50 18 C 28 18 14 31 14 48 C 14 59 21 69 33 74 L 30 84 C 29.5 85.5 31.5 86.8 32.8 85.8 L 47 77.8 C 48 77.9 49 78 50 78 C 72 78 86 65 86 48 C 86 31 72 18 50 18 Z M 50 33 C 63 33 71 40 71 48 C 71 56 63 63 50 63 C 48 63 46 62.7 44.2 62.2 L 38 65.6 L 39.5 60.5 C 33 58 29 53.5 29 48 C 29 40 37 33 50 33 Z"/>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-black text-concilig-dark">Terminal do Operador</h2>
+          <p class="text-xs text-slate-500 font-medium mt-1">Conexão centralizada em tempo real</p>
+        </div>
+
+        <form onsubmit="app.handleOperatorLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Matrícula</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="badge" class="w-5 h-5"></i>
+              </span>
+              <input type="text" id="opLoginRegistration" required placeholder="Ex: OP-101" list="operatorsListDatalist"
+                class="w-full pl-11 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-concilig-cyan focus:border-concilig-cyan text-sm font-semibold transition" />
+              <datalist id="operatorsListDatalist"></datalist>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Senha PIN (4 dígitos)</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="key-round" class="w-5 h-5"></i>
+              </span>
+              <input type="password" id="opLoginPin" maxlength="4" pattern="\d{4}" required placeholder="••••"
+                class="w-full pl-11 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-concilig-cyan focus:border-concilig-cyan text-center text-lg tracking-widest font-mono-num font-bold transition" />
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 bg-concilig-cyan hover:bg-concilig-cyanHover text-white rounded-xl font-bold shadow-lg shadow-concilig-cyan/25 active:scale-[0.99] transition flex items-center justify-center gap-2">
+            <span>Acessar e Registrar Ponto</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span>Terminal Multi-usuários</span>
+          <span class="font-bold text-concilig-cyanDark">Concilig Cloud Sync</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELA DO OPERADOR AUTENTICADO -->
+    <div id="viewTerminalActive" class="hidden max-w-2xl mx-auto space-y-5">
+      <!-- Perfil & Botão Logout Rápido -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-concilig-border flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-4 text-center sm:text-left">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-concilig-cyan to-concilig-cyanDark text-white flex items-center justify-center text-xl font-black shadow-md shadow-concilig-cyan/20" id="opAvatar">
+            OP
+          </div>
+          <div>
+            <div class="flex items-center justify-center sm:justify-start gap-2">
+              <h2 id="opCurrentName" class="text-xl font-black text-concilig-dark leading-tight">Nome Operador</h2>
+              <span id="opCurrentBadgeStatus" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Ausente</span>
+            </div>
+            <p class="text-xs text-slate-500 font-medium mt-1">Matrícula: <span id="opCurrentReg" class="font-mono-num font-bold text-slate-700">--</span> &bull; <span id="opCurrentRole">Atendente</span></p>
+          </div>
+        </div>
+
+        <button onclick="app.operatorLogout()" class="px-4 py-2.5 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-600 font-bold rounded-xl text-xs sm:text-sm transition flex items-center gap-2">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>Finalizar e Liberar Terminal</span>
+        </button>
+      </div>
+
+      <!-- Detalhes da Escala do Operador -->
+      <div class="bg-concilig-cyanLight border border-concilig-cyan/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-concilig-cyan text-white flex items-center justify-center shrink-0 shadow-sm">
+            <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs uppercase font-extrabold tracking-wider text-concilig-dark">Escala Designada:</span>
+              <span id="opScheduleNameBadge" class="px-2 py-0.5 rounded text-xs font-bold bg-white text-concilig-cyanDark border border-concilig-cyan/30">5x2 Comercial</span>
+            </div>
+            <div id="opScheduleDetails" class="text-xs text-slate-600 font-medium mt-0.5">
+              Jornada: 08:00 às 17:00 &bull; Limite de Pausa: 20 min
+            </div>
+          </div>
+        </div>
+        <div class="text-xs bg-white border border-concilig-cyan/30 px-3 py-1.5 rounded-xl text-slate-600 font-mono-num self-stretch sm:self-auto text-center sm:text-right">
+          Tolerância: <strong class="text-concilig-cyanDark font-bold" id="opLateToleranceDisplay">10 min</strong>
+        </div>
+      </div>
+
+      <!-- Relógio Oficial do Terminal -->
+      <div class="bg-concilig-dark text-white rounded-3xl p-6 text-center shadow-xl relative overflow-hidden border border-concilig-slate">
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-concilig-cyan/15 rounded-full blur-2xl"></div>
+        <p class="text-xs uppercase tracking-widest text-concilig-cyan font-bold mb-1">Horário Oficial do Registro</p>
+        <div id="opLiveClock" class="text-4xl sm:text-5xl font-black font-mono-num tracking-tight text-white mb-2">00:00:00</div>
+        <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-medium text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>Sincronização em Nuvem Ativa</span>
+        </div>
+      </div>
+
+      <!-- Botões de Ação de Ponto -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <button id="btnOpClockIn" onclick="app.recordAction('in')" class="p-4 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 transition flex items-center justify-between group shadow-sm disabled:opacity-40 disabled:pointer-events-none">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow group-hover:scale-105 transition">
+              <i data-lucide="door-open" class="w-5 h-5"></i>
+            </div>
+            <div class="text-left">
+              <div class="font-bold text-sm">Entrada</div>
+              <div class="text-[11px] text-emerald-700">Iniciar Expediente</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 text-emerald-600"></i>
+        </button>
+
+        <button id="btnOpBreakStart" onclick="app.recordAction('break_start')" class="p-4 rounded-2xl border-2 border-amber-500/30 bg-amber-50 hover:bg-amber-100 text-amber-950 transition flex items-center justify-between group shadow-sm disabled:opacity-40 disabled:pointer-events-none">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow group-hover:scale-105 transition">
+              <i data-lucide="coffee" class="w-5 h-5"></i>
+            </div>
+            <div class="text-left">
+              <div class="font-bold text-sm">Iniciar Pausa</div>
+              <div class="text-[11px] text-amber-700">Intervalo / Refeição</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 text-amber-600"></i>
+        </button>
+
+        <button id="btnOpBreakEnd" onclick="app.recordAction('break_end')" class="p-4 rounded-2xl border-2 border-concilig-cyan/40 bg-concilig-cyanLight hover:bg-cyan-100 text-slate-900 transition flex items-center justify-between group shadow-sm disabled:opacity-40 disabled:pointer-events-none">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-concilig-cyan text-white flex items-center justify-center shadow group-hover:scale-105 transition">
+              <i data-lucide="play" class="w-5 h-5"></i>
+            </div>
+            <div class="text-left">
+              <div class="font-bold text-sm">Retorno da Pausa</div>
+              <div class="text-[11px] text-concilig-cyanDark font-medium">Voltar ao Posto</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 text-concilig-cyan"></i>
+        </button>
+
+        <button id="btnOpClockOut" onclick="app.recordAction('out')" class="p-4 rounded-2xl border-2 border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-900 transition flex items-center justify-between group shadow-sm disabled:opacity-40 disabled:pointer-events-none">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-concilig-dark text-white flex items-center justify-center shadow group-hover:scale-105 transition">
+              <i data-lucide="log-out" class="w-5 h-5"></i>
+            </div>
+            <div class="text-left">
+              <div class="font-bold text-sm">Saída</div>
+              <div class="text-[11px] text-slate-500">Encerrar Expediente</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 text-slate-600"></i>
+        </button>
+      </div>
+
+      <!-- Minhas Batidas Hoje -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-concilig-border">
+        <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
+          <h3 class="font-bold text-concilig-dark text-sm flex items-center gap-2">
+            <i data-lucide="history" class="w-4 h-4 text-concilig-cyan"></i>
+            Minhas Batidas Hoje
+          </h3>
+          <div class="text-xs font-semibold text-slate-500">
+            Tempo em pausa hoje: <span id="opTotalBreakTimeDisplay" class="font-mono-num font-bold text-concilig-dark">0 min</span>
+          </div>
+        </div>
+        <div id="opPunchesList" class="space-y-2"></div>
+      </div>
+    </div>
+
+
+    <!-- ============================================== -->
+    <!-- MODO 2: PAINEL DA SUPERVISÃO                   -->
+    <!-- ============================================== -->
+    <div id="viewSupervisor" class="hidden space-y-6">
+      
+      <!-- Topo com Navegação das Abas do Gestor -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-3xl border border-concilig-border shadow-sm">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-concilig-cyanLight text-concilig-cyanDark border border-concilig-cyan/20">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5 mr-1 text-concilig-cyan"></i> Supervisão Concilig
+            </span>
+            <span class="text-xs text-slate-400 font-semibold" id="supSyncStatusTag">Sincronizado via Nuvem</span>
+          </div>
+          <h2 class="text-2xl font-black text-concilig-dark mt-1">Torre de Gestão Operacional</h2>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="bg-slate-100 p-1 rounded-2xl flex items-center gap-1 border border-slate-200">
+            <button onclick="app.setSupervisorTab('monitoring')" id="supTabBtn-monitoring" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-concilig-dark shadow-sm transition flex items-center gap-1.5">
+              <i data-lucide="layout-dashboard" class="w-4 h-4 text-concilig-cyan"></i>
+              <span>Monitoramento</span>
+            </button>
+            <button onclick="app.setSupervisorTab('schedules')" id="supTabBtn-schedules" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+              <i data-lucide="calendar" class="w-4 h-4 text-concilig-cyan"></i>
+              <span>Escalas</span>
+            </button>
+            <button onclick="app.setSupervisorTab('operators')" id="supTabBtn-operators" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+              <i data-lucide="users" class="w-4 h-4 text-concilig-cyan"></i>
+              <span>Operadores</span>
+            </button>
+          </div>
+
+          <button onclick="app.openSettingsModal()" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition" title="Configurações e Senha Gestor">
+            <i data-lucide="settings" class="w-4 h-4"></i>
+          </button>
+          <button onclick="app.exportDataCSV()" class="px-3.5 py-2 bg-concilig-dark hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+            <i data-lucide="download" class="w-4 h-4 text-concilig-cyan"></i>
+            <span>Exportar CSV</span>
+          </button>
+          <button onclick="app.seedSampleDataIfEmpty()" class="px-2.5 py-2 text-concilig-cyanDark hover:bg-concilig-cyanLight rounded-xl text-xs font-bold transition" title="Carregar equipe exemplo">
+            + Exemplo
+          </button>
+        </div>
+      </div>
+
+      <!-- ABA 1: MONITORAMENTO AO VIVO -->
+      <div id="supSectionMonitoring" class="space-y-6">
+        <!-- KPIS / CARDS -->
+        <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div class="bg-white p-4 rounded-2xl border border-concilig-border shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Trabalhando</span>
+              <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+            <div id="kpiActive" class="text-2xl font-black text-slate-900">0</div>
+            <p class="text-[11px] text-emerald-600 font-bold mt-0.5">Operando agora</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-concilig-border shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Em Pausa</span>
+              <div class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i data-lucide="coffee" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+            <div id="kpiBreak" class="text-2xl font-black text-amber-600">0</div>
+            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Intervalo em curso</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-concilig-border shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Ausente / Fim</span>
+              <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                <i data-lucide="user-x" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+            <div id="kpiOff" class="text-2xl font-black text-slate-700">0</div>
+            <p class="text-[11px] text-slate-500 font-medium mt-0.5">Sem batida hoje</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-rose-200 shadow-sm bg-rose-50/30">
+            <div class="flex items-center justify-between text-rose-600 mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Atrasos</span>
+              <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center">
+                <i data-lucide="clock-alert" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+            <div id="kpiLate" class="text-2xl font-black text-rose-600">0</div>
+            <p class="text-[11px] text-rose-600 font-bold mt-0.5">&gt; tolerância</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-amber-300 shadow-sm bg-amber-50/40">
+            <div class="flex items-center justify-between text-amber-700 mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Estouro Pausa</span>
+              <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                <i data-lucide="timer-off" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+            <div id="kpiBreakOver" class="text-2xl font-black text-amber-700">0</div>
+            <p class="text-[11px] text-amber-700 font-bold mt-0.5">&gt; limite da escala</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-concilig-cyan/40 shadow-sm bg-concilig-cyanLight/40">
+            <div class="flex items-center justify-between text-concilig-cyanDark mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Hora Extra</span>
+              <div class="w-7 h-7 rounded-lg bg-concilig-cyan text-white flex items-center justify-center">
+                <i data-lucide="hourglass" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+            <div id="kpiOvertime" class="text-2xl font-black text-concilig-cyanDark">0</div>
+            <p class="text-[11px] text-concilig-cyanDark font-bold mt-0.5">&gt; jornada prevista</p>
+          </div>
+        </div>
+
+        <!-- Barra de Filtros e Busca -->
+        <div class="bg-white p-4 rounded-2xl border border-concilig-border shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+            <button onclick="app.setFilter('all')" id="filterBtn-all" class="filter-tab px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-concilig-dark text-white">Todos (<span id="count-all">0</span>)</button>
+            <button onclick="app.setFilter('working')" id="filterBtn-working" class="filter-tab px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Trabalhando</button>
+            <button onclick="app.setFilter('break')" id="filterBtn-break" class="filter-tab px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Em Pausa</button>
+            <button onclick="app.setFilter('alerts')" id="filterBtn-alerts" class="filter-tab px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-rose-700 hover:bg-rose-50 flex items-center gap-1">
+              <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+              <span>Irregularidades (<span id="count-alerts">0</span>)</span>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <select id="filterScheduleSelect" onchange="app.renderSupervisorGrid()" class="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl font-semibold text-slate-700 focus:ring-2 focus:ring-concilig-cyan">
+              <option value="all">Todas as Escalas</option>
+            </select>
+
+            <div class="relative flex-1 md:w-56">
+              <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="supervisorSearch" oninput="app.renderSupervisorGrid()" placeholder="Buscar operador..."
+                class="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-concilig-cyan transition">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela ao Vivo -->
+        <div class="bg-white rounded-3xl border border-concilig-border shadow-sm overflow-hidden">
+          <div class="overflow-x-auto custom-scroll">
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-concilig-border text-slate-600 text-xs uppercase font-bold">
+                  <th class="p-4">Operador &amp; Matrícula</th>
+                  <th class="p-4">Escala Atribuída</th>
+                  <th class="p-4">Status Atual</th>
+                  <th class="p-4">Entrada Real</th>
+                  <th class="p-4">Pausa Total</th>
+                  <th class="p-4">Pausa em Curso</th>
+                  <th class="p-4">Jornada Efetiva</th>
+                  <th class="p-4 text-center">Ocorrências / Alertas</th>
+                  <th class="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="supervisorTableBody" class="divide-y divide-slate-100 text-slate-700 font-normal"></tbody>
+            </table>
+          </div>
+
+          <div id="supervisorTableEmpty" class="hidden p-8 text-center text-slate-400">
+            <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>
+            <p class="text-sm font-semibold">Nenhum operador encontrado com os critérios.</p>
+          </div>
+        </div>
+
+        <!-- Feed de Batidas em Tempo Real -->
+        <div class="bg-white rounded-3xl border border-concilig-border shadow-sm p-5 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-concilig-dark text-sm flex items-center gap-2">
+              <i data-lucide="activity" class="w-4 h-4 text-concilig-cyan"></i>
+              Feed de Batidas em Tempo Real (Todas as Máquinas)
+            </h3>
+            <span class="text-xs text-slate-400 font-medium">Sincronização imediata via nuvem</span>
+          </div>
+          <div id="generalActivityFeed" class="space-y-2.5 max-h-56 overflow-y-auto custom-scroll pr-2 text-xs"></div>
+        </div>
+      </div>
+
+      <!-- ABA 2: MÓDULO DE ESCALAS -->
+      <div id="supSectionSchedules" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-concilig-cyanLight p-5 sm:p-6 rounded-3xl border border-concilig-cyan/30">
+          <div>
+            <h3 class="text-lg font-black text-concilig-dark flex items-center gap-2">
+              <i data-lucide="calendar-range" class="w-5 h-5 text-concilig-cyan"></i>
+              Modelos de Escalas de Trabalho Concilig
+            </h3>
+            <p class="text-xs text-slate-600 font-medium mt-1">Crie, edite ou exclua escalas. As alterações são sincronizadas para todos os computadores instantaneamente.</p>
+          </div>
+          <button onclick="app.openNewScheduleModal()" class="px-4 py-2.5 bg-concilig-cyan hover:bg-concilig-cyanHover text-white rounded-xl text-xs font-bold shadow-md shadow-concilig-cyan/25 transition flex items-center gap-2 shrink-0">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Nova Escala</span>
+          </button>
+        </div>
+
+        <div id="schedulesCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+        <!-- Atribuição rápida de escala -->
+        <div class="bg-white rounded-3xl border border-concilig-border shadow-sm p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h4 class="font-bold text-concilig-dark text-base flex items-center gap-2">
+                <i data-lucide="shuffle" class="w-4 h-4 text-concilig-cyan"></i>
+                Atribuição Rápida de Escala por Operador
+              </h4>
+              <p class="text-xs text-slate-500 font-medium">Troque a escala com 1 clique direto na lista</p>
+            </div>
+            <button onclick="app.openBatchScheduleModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-concilig-cyan"></i>
+              <span>Atribuir em Lote</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto custom-scroll">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 font-bold border-b border-concilig-border uppercase">
+                  <th class="p-3.5">Operador</th>
+                  <th class="p-3.5">Matrícula</th>
+                  <th class="p-3.5">Cargo</th>
+                  <th class="p-3.5">Escala Vigente</th>
+                  <th class="p-3.5">Horário Previsto</th>
+                  <th class="p-3.5">Troca Rápida de Escala</th>
+                </tr>
+              </thead>
+              <tbody id="quickScheduleAssignBody" class="divide-y divide-slate-100 text-slate-700"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 3: GESTÃO DE OPERADORES -->
+      <div id="supSectionOperators" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-concilig-border shadow-sm">
+          <div>
+            <h3 class="text-lg font-black text-concilig-dark flex items-center gap-2">
+              <i data-lucide="users-2" class="w-5 h-5 text-concilig-cyan"></i>
+              Quadro Geral de Operadores Concilig
+            </h3>
+            <p class="text-xs text-slate-500 font-medium mt-0.5">Cadastre novos operadores, configure PIN de 4 dígitos ou desative</p>
+          </div>
+          <button onclick="app.openOperatorModal()" class="px-4 py-2.5 bg-concilig-cyan hover:bg-concilig-cyanHover text-white rounded-xl text-xs font-bold shadow-md shadow-concilig-cyan/25 transition flex items-center gap-1.5">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>Cadastrar Operador</span>
+          </button>
+        </div>
+
+        <div class="bg-white rounded-3xl border border-concilig-border shadow-sm overflow-hidden">
+          <div class="overflow-x-auto custom-scroll">
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-concilig-border text-slate-600 text-xs uppercase font-bold">
+                  <th class="p-4">Nome</th>
+                  <th class="p-4">Matrícula</th>
+                  <th class="p-4">Cargo</th>
+                  <th class="p-4">Escala Vinculada</th>
+                  <th class="p-4">PIN (4 Dígitos)</th>
+                  <th class="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="operatorsManagementTableBody" class="divide-y divide-slate-100 text-slate-700 text-xs"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ============================================== -->
+  <!-- MODAL: CONFIGURAÇÃO DO FIREBASE (NUVEM)        -->
+  <!-- ============================================== -->
+  <div id="modalFirebaseConfig" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-concilig-border max-h-[90vh] overflow-y-auto custom-scroll">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 class="text-base font-bold text-concilig-dark flex items-center gap-2">
+          <i data-lucide="cloud" class="w-5 h-5 text-concilig-cyan"></i>
+          <span>Conectar Firebase Firestore (Multi-Máquinas)</span>
+        </h3>
+        <button onclick="app.closeModal('modalFirebaseConfig')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-600 space-y-3 mb-4">
+        <div class="p-3 bg-concilig-cyanLight border border-concilig-cyan/30 rounded-xl text-concilig-dark font-medium">
+          <strong>Como funciona:</strong> Ao colar suas chaves do Firebase (Plano Gratuito Spark), o sistema se conectará ao seu banco de dados na nuvem. Todos os computadores que acessarem este link verão os mesmos dados em tempo real.
+        </div>
+        <p>Se você já possui um projeto no console do Firebase, cole o objeto ou os dados abaixo:</p>
+      </div>
+
+      <form onsubmit="app.saveFirebaseConfig(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Cole o firebaseConfig (JSON ou texto):</label>
+          <textarea id="firebaseRawInput" rows="5" placeholder='{\n  "apiKey": "AIzaSy...",\n  "authDomain": "seu-app.firebaseapp.com",\n  "projectId": "seu-app",\n  "storageBucket": "seu-app.appspot.com",\n  "messagingSenderId": "...",\n  "appId": "..."\n}' class="w-full p-2.5 font-mono text-[11px] border rounded-xl border-slate-300 bg-slate-50 focus:bg-white"></textarea>
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button type="button" onclick="app.clearFirebaseConfig()" class="text-rose-600 hover:underline font-bold text-xs">
+            Desconectar / Voltar ao modo local
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick="app.closeModal('modalFirebaseConfig')" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-slate-600">
+              Cancelar
+            </button>
+            <button type="submit" class="px-5 py-2 bg-concilig-cyan hover:bg-concilig-cyanHover text-white font-bold rounded-xl shadow-md transition">
+              Salvar e Conectar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: LOGIN SUPERVISOR -->
+  <div id="modalSupervisorLogin" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 sm:p-7 shadow-2xl border border-concilig-border">
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 bg-concilig-cyanLight text-concilig-cyan rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="lock" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-lg font-black text-concilig-dark">Supervisão Concilig</h3>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">Insira o PIN de 4 dígitos (Padrão: <strong>9999</strong>)</p>
+      </div>
+
+      <form onsubmit="app.verifySupervisorPin(event)" class="space-y-4">
+        <div>
+          <input type="password" id="supervisorPinInput" maxlength="4" pattern="\d{4}" required autofocus placeholder="••••"
+            class="w-full py-3 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-concilig-cyan text-center text-2xl font-mono-num font-bold tracking-widest text-slate-800" />
+        </div>
+        <div class="flex gap-2">
+          <button type="button" onclick="app.closeModal('modalSupervisorLogin')" class="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition">
+            Cancelar
+          </button>
+          <button type="submit" class="flex-1 py-2.5 bg-concilig-cyan hover:bg-concilig-cyanHover text-white text-xs font-bold rounded-xl shadow-md shadow-concilig-cyan/25 transition">
+            Autenticar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CADASTRO / EDIÇÃO DE ESCALA -->
+  <div id="modalSchedule" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-concilig-border max-h-[90vh] overflow-y-auto custom-scroll">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 id="scheduleModalTitle" class="text-base font-bold text-concilig-dark flex items-center gap-2">
+          <i data-lucide="calendar-plus" class="w-5 h-5 text-concilig-cyan"></i>
+          <span>Modelo de Escala</span>
+        </h3>
+        <button onclick="app.closeModal('modalSchedule')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.saveSchedule(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="formScheduleId" />
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nome da Escala</label>
+          <input type="text" id="formScheduleName" required placeholder="Ex: 5x2 Comercial SAC" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-medium" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Tipo / Regime</label>
+            <select id="formScheduleType" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-medium">
+              <option value="5x2">5x2 (Seg a Sex)</option>
+              <option value="6x1">6x1 (6 dias x 1 folga)</option>
+              <option value="12x36">12x36 (Plantonista)</option>
+              <option value="Custom">Flexível / Especial</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Horário Entrada Previsto</label>
+            <input type="time" id="formScheduleStart" required value="08:00" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-mono-num font-bold" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Horário Saída Previsto</label>
+            <input type="time" id="formScheduleEnd" required value="17:00" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-mono-num font-bold" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Limite Pausa (minutos)</label>
+            <input type="number" id="formScheduleMaxBreak" min="5" max="120" required value="20" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-mono-num font-bold" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Carga Horária Máx. Diária (horas)</label>
+          <input type="number" id="formScheduleDailyHours" step="0.5" min="1" max="14" required value="8.0" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-mono-num" />
+          <span class="text-[10px] text-slate-400">Gera indicador de Hora Extra quando ultrapassado</span>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Descrição dos Dias</label>
+          <input type="text" id="formScheduleDays" placeholder="Ex: Segunda a Sexta com folga semanal" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs" />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="app.closeModal('modalSchedule')" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-slate-600">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-concilig-cyan hover:bg-concilig-cyanHover text-white font-bold rounded-xl shadow-md transition">
+            Salvar Escala
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CADASTRO / EDIÇÃO DE OPERADOR -->
+  <div id="modalOperator" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-concilig-border">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 id="opModalTitle" class="text-base font-bold text-concilig-dark flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-5 h-5 text-concilig-cyan"></i>
+          <span>Novo Operador Concilig</span>
+        </h3>
+        <button onclick="app.closeModal('modalOperator')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.saveOperator(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="formOpId" />
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nome Completo</label>
+          <input type="text" id="formOpName" required placeholder="Ex: Lucas Ferreira Silva" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-semibold" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Matrícula</label>
+            <input type="text" id="formOpReg" required placeholder="OP-107" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-mono-num font-bold uppercase" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Cargo / Função</label>
+            <input type="text" id="formOpRole" required placeholder="Atendente Concilig N1" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Escala Designada</label>
+            <select id="formOpScheduleId" required class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-semibold"></select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Senha PIN (4 Dígitos)</label>
+            <input type="password" id="formOpPin" maxlength="4" pattern="\d{4}" required placeholder="1234" class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs text-center font-mono-num font-bold tracking-widest" />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+          <button type="button" onclick="app.closeModal('modalOperator')" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-slate-600">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-concilig-cyan hover:bg-concilig-cyanHover text-white font-bold rounded-xl shadow-md transition">
+            Salvar Operador
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ATRIBUIÇÃO EM LOTE -->
+  <div id="modalBatchSchedule" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-concilig-border">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 class="text-base font-bold text-concilig-dark flex items-center gap-2">
+          <i data-lucide="layers" class="w-5 h-5 text-concilig-cyan"></i>
+          <span>Atribuir Escala em Lote</span>
+        </h3>
+        <button onclick="app.closeModal('modalBatchSchedule')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.applyBatchSchedule(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1.5">1. Selecione a Nova Escala:</label>
+          <select id="batchTargetScheduleSelect" required class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-semibold"></select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1.5">2. Selecione os Operadores:</label>
+          <div class="flex items-center justify-between mb-2">
+            <button type="button" onclick="app.toggleSelectAllBatch(true)" class="text-[11px] font-bold text-concilig-cyanDark hover:underline">Marcar Todos</button>
+            <button type="button" onclick="app.toggleSelectAllBatch(false)" class="text-[11px] font-semibold text-slate-400 hover:underline">Desmarcar Todos</button>
+          </div>
+          <div id="batchOperatorsCheckboxes" class="max-h-48 overflow-y-auto custom-scroll border border-slate-200 rounded-xl p-2.5 space-y-1.5 bg-slate-50"></div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="app.closeModal('modalBatchSchedule')" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-slate-600">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-concilig-cyan hover:bg-concilig-cyanHover text-white font-bold rounded-xl shadow-md transition">
+            Aplicar em Lote
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: HISTÓRICO DE BATIDAS DO OPERADOR (SUPERVISOR) -->
+  <div id="modalOperatorPunches" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-concilig-border">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div>
+          <h3 id="modalPunchesOpName" class="text-base font-bold text-concilig-dark leading-tight">Nome Operador</h3>
+          <p id="modalPunchesOpMeta" class="text-xs text-slate-500 font-medium">Matrícula: --</p>
+        </div>
+        <button onclick="app.closeModal('modalOperatorPunches')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="mb-4 space-y-2">
+        <h4 class="text-xs font-bold uppercase text-slate-500 tracking-wider">Histórico de Marcações de Hoje</h4>
+        <div id="modalPunchesList" class="max-h-64 overflow-y-auto custom-scroll space-y-2 pr-1"></div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="app.closeModal('modalOperatorPunches')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PARÂMETROS GERAIS -->
+  <div id="modalSettings" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-concilig-border">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 class="text-base font-bold text-concilig-dark flex items-center gap-2">
+          <i data-lucide="sliders" class="w-5 h-5 text-concilig-cyan"></i>
+          <span>Parâmetros &amp; Senha de Supervisão</span>
+        </h3>
+        <button onclick="app.closeModal('modalSettings')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.saveGlobalSettings(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Tolerância Geral de Entrada (minutos)</label>
+          <input type="number" id="cfgLateTolerance" min="0" max="60" required class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-xs font-mono-num font-bold" />
+        </div>
+
+        <div class="pt-2 border-t border-slate-100">
+          <label class="block font-bold text-slate-700 mb-1">PIN do Gestor / Supervisão (4 dígitos)</label>
+          <input type="password" id="cfgSupervisorPin" maxlength="4" pattern="\d{4}" required class="w-full px-3 py-2 border rounded-xl border-slate-300 bg-slate-50 focus:bg-white text-center font-mono-num font-bold text-sm tracking-widest" />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="app.closeModal('modalSettings')" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-slate-600">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-concilig-cyan hover:bg-concilig-cyanHover text-white font-bold rounded-xl shadow-md transition">
+            Salvar Parâmetros
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RODAPÉ -->
+  <footer class="bg-white border-t border-concilig-border py-4 px-6 text-center text-xs text-slate-500 mt-auto">
+    <div class="flex items-center justify-center gap-2 mb-1">
+      <span class="font-black text-concilig-dark lowercase">concilig</span>
+      <span class="text-slate-300">&bull;</span>
+      <span>Sistema Corporativo de Ponto &amp; Pausas em Nuvem</span>
+    </div>
+    <span class="text-[11px] text-slate-400">Multi-máquinas em tempo real &bull; Firebase Firestore Sync</span>
+  </footer>
+
+  <!-- ============================================== -->
+  <!-- SCRIPT MODULAR COM FIREBASE REALTIME SYNC      -->
+  <!-- ============================================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // BroadcastChannel para sincronização instantânea entre abas no mesmo PC
+    const localBroadcast = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('concilig_sync_channel') : null;
+
+    const DEFAULT_SCHEDULES = [
+      {
+        id: 'sch_comercial',
+        name: '5x2 Comercial SAC',
+        type: '5x2',
+        startTime: '08:00',
+        endTime: '17:00',
+        maxBreakMinutes: 20,
+        dailyHours: 8.0,
+        daysDesc: 'Segunda a Sexta'
+      },
+      {
+        id: 'sch_tarde',
+        name: '6x1 Tarde Operação',
+        type: '6x1',
+        startTime: '13:00',
+        endTime: '21:20',
+        maxBreakMinutes: 20,
+        dailyHours: 7.33,
+        daysDesc: '6 dias x 1 folga rotativa'
+      },
+      {
+        id: 'sch_plantao',
+        name: '12x36 Noturno Cobrança',
+        type: '12x36',
+        startTime: '19:00',
+        endTime: '07:00',
+        maxBreakMinutes: 60,
+        dailyHours: 11.0,
+        daysDesc: 'Turno Plantão 12h'
+      }
+    ];
+
+    const DEFAULT_OPERATORS = [
+      { id: '1', name: 'Ana Beatriz Souza', registration: 'OP-101', role: 'Operadora Ativo Concilig', scheduleId: 'sch_comercial', pin: '1234', active: true },
+      { id: '2', name: 'Carlos Eduardo Lima', registration: 'OP-102', role: 'Atendente SAC', scheduleId: 'sch_comercial', pin: '2345', active: true },
+      { id: '3', name: 'Juliana Mendes', registration: 'OP-103', role: 'Especialista em Retenção', scheduleId: 'sch_tarde', pin: '3456', active: true },
+      { id: '4', name: 'Rafael Costa', registration: 'OP-104', role: 'Monitor de Atendimento', scheduleId: 'sch_comercial', pin: '4567', active: true }
+    ];
+
+    const DEFAULT_CONFIG = {
+      lateToleranceMinutes: 10,
+      supervisorPin: '9999'
+    };
+
+    class ConciligApp {
+      constructor() {
+        this.currentMode = 'terminal_login';
+        this.supervisorAuthenticated = false;
+        this.supervisorTab = 'monitoring';
+        this.currentFilter = 'all';
+        this.currentOperator = null;
+
+        this.config = { ...DEFAULT_CONFIG };
+        this.schedules = [...DEFAULT_SCHEDULES];
+        this.operators = [...DEFAULT_OPERATORS];
+        this.punches = [];
+
+        this.firebaseApp = null;
+        this.db = null;
+        this.auth = null;
+        this.appId = typeof __app_id !== 'undefined' ? __app_id : 'concilig-ponto-app';
+        this.firebaseConfig = null;
+        this.isCloudConnected = false;
+
+        this.unsubscribers = [];
+      }
+
+      async init() {
+        this.startClock();
+        this.loadStoredFirebaseConfig();
+        await this.initFirebase();
+        this.setupLocalBroadcast();
+        this.populateDatalist();
+        this.showTerminalLogin();
+        lucide.createIcons();
+      }
+
+      loadStoredFirebaseConfig() {
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+          try {
+            this.firebaseConfig = JSON.parse(__firebase_config);
+            return;
+          } catch (e) {}
+        }
+        const saved = localStorage.getItem('concilig_custom_firebase_config');
+        if (saved) {
+          try {
+            this.firebaseConfig = JSON.parse(saved);
+          } catch (e) {}
+        }
+      }
+
+      async initFirebase() {
+        this.updateSyncStatus('connecting', 'Conectando à base central...');
+
+        if (!this.firebaseConfig) {
+          this.fallbackToLocalStorage();
+          this.updateSyncStatus('local', 'Modo Local / Broadcast (Nuvem não configurada)');
+          return;
+        }
+
+        try {
+          this.firebaseApp = initializeApp(this.firebaseConfig);
+          this.auth = getAuth(this.firebaseApp);
+          this.db = getFirestore(this.firebaseApp);
+
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(this.auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(this.auth);
+          }
+
+          this.isCloudConnected = true;
+          this.updateSyncStatus('cloud', 'Conectado ao Firebase Firestore (Tempo Real)');
+          this.listenToFirestoreData();
+        } catch (error) {
+          console.warn('Erro ao conectar com Firebase:', error);
+          this.fallbackToLocalStorage();
+          this.updateSyncStatus('local', 'Modo Local / Broadcast ativo');
+        }
+      }
+
+      updateSyncStatus(status, label) {
+        const dot = document.getElementById('connStatusDot');
+        const text = document.getElementById('connStatusText');
+        const supTag = document.getElementById('supSyncStatusTag');
+
+        if (!dot || !text) return;
+
+        if (status === 'cloud') {
+          dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          text.textContent = label;
+          if (supTag) supTag.textContent = 'Sincronizado via Firebase Firestore';
+        } else if (status === 'connecting') {
+          dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+          text.textContent = label;
+        } else {
+          dot.className = 'w-2 h-2 rounded-full bg-concilig-cyan';
+          text.textContent = label;
+          if (supTag) supTag.textContent = 'Sincronizado em Rede Local';
+        }
+      }
+
+      // ESCUTA DO BANCO EM TEMPO REAL (RULE 1 & 2 RESPEITADAS)
+      listenToFirestoreData() {
+        if (!this.db || !this.auth.currentUser) return;
+
+        // Limpa listeners antigos
+        this.unsubscribers.forEach(unsub => unsub && unsub());
+        this.unsubscribers = [];
+
+        // 1. Configurações
+        const cfgCol = collection(this.db, 'artifacts', this.appId, 'public', 'data', 'config');
+        const unsubCfg = onSnapshot(cfgCol, snap => {
+          snap.forEach(docSnap => {
+            if (docSnap.id === 'general') {
+              this.config = { ...DEFAULT_CONFIG, ...docSnap.data() };
+              this.renderCurrentView();
+            }
+          });
+        }, err => console.error("Erro config firestore:", err));
+        this.unsubscribers.push(unsubCfg);
+
+        // 2. Escalas
+        const schCol = collection(this.db, 'artifacts', this.appId, 'public', 'data', 'schedules');
+        const unsubSch = onSnapshot(schCol, snap => {
+          const list = [];
+          snap.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
+          if (list.length > 0) {
+            this.schedules = list;
+          } else {
+            this.seedDefaultSchedules();
+          }
+          this.populateScheduleFilterSelect();
+          this.renderCurrentView();
+        }, err => console.error("Erro escalas firestore:", err));
+        this.unsubscribers.push(unsubSch);
+
+        // 3. Operadores
+        const opsCol = collection(this.db, 'artifacts', this.appId, 'public', 'data', 'operators');
+        const unsubOps = onSnapshot(opsCol, snap => {
+          const list = [];
+          snap.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
+          if (list.length > 0) {
+            this.operators = list;
+          } else {
+            this.seedDefaultOperators();
+          }
+          this.populateDatalist();
+          this.renderCurrentView();
+        }, err => console.error("Erro operadores firestore:", err));
+        this.unsubscribers.push(unsubOps);
+
+        // 4. Batidas de ponto (Punches)
+        const punchesCol = collection(this.db, 'artifacts', this.appId, 'public', 'data', 'punches');
+        const unsubPunches = onSnapshot(punchesCol, snap => {
+          const list = [];
+          snap.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
+          this.punches = list;
+
+          const stats = document.getElementById('syncStatsText');
+          if (stats) stats.textContent = `${this.punches.length} batidas sincronizadas`;
+
+          this.renderCurrentView();
+        }, err => console.error("Erro batidas firestore:", err));
+        this.unsubscribers.push(unsubPunches);
+      }
+
+      async seedDefaultSchedules() {
+        if (!this.db || !this.auth.currentUser) return;
+        for (const s of DEFAULT_SCHEDULES) {
+          const { id, ...data } = s;
+          await setDoc(doc(this.db, 'artifacts', this.appId, 'public', 'data', 'schedules', id), data);
+        }
+      }
+
+      async seedDefaultOperators() {
+        if (!this.db || !this.auth.currentUser) return;
+        for (const o of DEFAULT_OPERATORS) {
+          const { id, ...data } = o;
+          await setDoc(doc(this.db, 'artifacts', this.appId, 'public', 'data', 'operators', id), data);
+        }
+      }
+
+      fallbackToLocalStorage() {
+        try {
+          const cfg = localStorage.getItem('concilig_cfg');
+          this.config = cfg ? JSON.parse(cfg) : { ...DEFAULT_CONFIG };
+
+          const sch = localStorage.getItem('concilig_sch');
+          this.schedules = sch ? JSON.parse(sch) : [...DEFAULT_SCHEDULES];
+
+          const ops = localStorage.getItem('concilig_ops');
+          this.operators = ops ? JSON.parse(ops) : [...DEFAULT_OPERATORS];
+
+          const punc = localStorage.getItem('concilig_punc');
+          this.punches = punc ? JSON.parse(punc) : [];
+        } catch (e) {
+          this.config = { ...DEFAULT_CONFIG };
+          this.schedules = [...DEFAULT_SCHEDULES];
+          this.operators = [...DEFAULT_OPERATORS];
+          this.punches = [];
+        }
+        this.populateScheduleFilterSelect();
+        this.populateDatalist();
+        this.renderCurrentView();
+      }
+
+      setupLocalBroadcast() {
+        if (!localBroadcast) return;
+        localBroadcast.onmessage = (event) => {
+          if (event.data?.type === 'CONCILIG_SYNC') {
+            if (!this.isCloudConnected) {
+              this.fallbackToLocalStorage();
+              this.showToast('Atualização recebida de outro terminal!', 'info');
+            }
+          }
+        };
+      }
+
+      broadcastLocalUpdate() {
+        if (localBroadcast) {
+          localBroadcast.postMessage({ type: 'CONCILIG_SYNC', timestamp: Date.now() });
+        }
+      }
+
+      async saveRecord(collectionName, id, data) {
+        if (this.isCloudConnected && this.db && this.auth?.currentUser) {
+          try {
+            await setDoc(doc(this.db, 'artifacts', this.appId, 'public', 'data', collectionName, id), data);
+          } catch (e) {
+            console.error(`Erro ao salvar ${collectionName}:`, e);
+          }
+        } else {
+          if (collectionName === 'schedules') {
+            const idx = this.schedules.findIndex(s => s.id === id);
+            if (idx >= 0) this.schedules[idx] = { id, ...data };
+            else this.schedules.push({ id, ...data });
+            localStorage.setItem('concilig_sch', JSON.stringify(this.schedules));
+          } else if (collectionName === 'operators') {
+            const idx = this.operators.findIndex(o => o.id === id);
+            if (idx >= 0) this.operators[idx] = { id, ...data };
+            else this.operators.push({ id, ...data });
+            localStorage.setItem('concilig_ops', JSON.stringify(this.operators));
+          } else if (collectionName === 'punches') {
+            this.punches.push({ id, ...data });
+            localStorage.setItem('concilig_punc', JSON.stringify(this.punches));
+          } else if (collectionName === 'config') {
+            this.config = { ...this.config, ...data };
+            localStorage.setItem('concilig_cfg', JSON.stringify(this.config));
+          }
+          this.broadcastLocalUpdate();
+          this.renderCurrentView();
+        }
+      }
+
+      async deleteRecord(collectionName, id) {
+        if (this.isCloudConnected && this.db && this.auth?.currentUser) {
+          try {
+            await deleteDoc(doc(this.db, 'artifacts', this.appId, 'public', 'data', collectionName, id));
+          } catch (e) {
+            console.error(`Erro ao deletar ${collectionName}:`, e);
+          }
+        } else {
+          if (collectionName === 'schedules') {
+            this.schedules = this.schedules.filter(s => s.id !== id);
+            localStorage.setItem('concilig_sch', JSON.stringify(this.schedules));
+          } else if (collectionName === 'operators') {
+            this.operators = this.operators.filter(o => o.id !== id);
+            localStorage.setItem('concilig_ops', JSON.stringify(this.operators));
+          }
+          this.broadcastLocalUpdate();
+          this.renderCurrentView();
+        }
+      }
+
+      startClock() {
+        const update = () => {
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString('pt-BR');
+          const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+          const timeElem = document.getElementById('currentTimeDisplay');
+          const dateElem = document.getElementById('currentDateDisplay');
+          if (timeElem) timeElem.textContent = timeStr;
+          if (dateElem) dateElem.textContent = dateStr;
+
+          const opLiveClock = document.getElementById('opLiveClock');
+          if (opLiveClock && this.currentMode === 'terminal_active') {
+            opLiveClock.textContent = timeStr;
+          }
+
+          if (this.currentMode === 'supervisor' && this.supervisorTab === 'monitoring') {
+            this.updateLiveMonitoringTimers();
+          }
+        };
+        update();
+        setInterval(update, 1000);
+      }
+
+      renderCurrentView() {
+        if (this.currentMode === 'terminal_active' && this.currentOperator) {
+          // Atualiza dados caso tenham sido editados na supervisão
+          const fresh = this.operators.find(o => o.id === this.currentOperator.id);
+          if (fresh) this.currentOperator = fresh;
+          this.renderOperatorTerminalDetails();
+        } else if (this.currentMode === 'supervisor') {
+          if (this.supervisorTab === 'monitoring') this.renderSupervisorGrid();
+          if (this.supervisorTab === 'schedules') {
+            this.renderSchedulesGrid();
+            this.renderQuickScheduleAssignTable();
+          }
+          if (this.supervisorTab === 'operators') this.renderOperatorsTable();
+        }
+      }
+
+      populateDatalist() {
+        const dl = document.getElementById('operatorsListDatalist');
+        if (!dl) return;
+        dl.innerHTML = '';
+        this.operators.forEach(op => {
+          if (op.active) {
+            const opt = document.createElement('option');
+            opt.value = op.registration;
+            opt.label = `${op.name} (${op.registration})`;
+            dl.appendChild(opt);
+          }
+        });
+      }
+
+      // NAVEGAÇÃO E AUTENTICAÇÃO
+      showTerminalLogin() {
+        this.currentMode = 'terminal_login';
+        this.currentOperator = null;
+        document.getElementById('viewTerminalLogin').classList.remove('hidden');
+        document.getElementById('viewTerminalActive').classList.add('hidden');
+        document.getElementById('viewSupervisor').classList.add('hidden');
+        this.updateNavButtonStyles('terminal');
+
+        document.getElementById('opLoginRegistration').value = '';
+        document.getElementById('opLoginPin').value = '';
+        lucide.createIcons();
+      }
+
+      promptSupervisorLogin() {
+        if (this.supervisorAuthenticated) {
+          this.showSupervisorView();
+        } else {
+          document.getElementById('supervisorPinInput').value = '';
+          this.openModal('modalSupervisorLogin');
+        }
+      }
+
+      verifySupervisorPin(e) {
+        e.preventDefault();
+        const pin = document.getElementById('supervisorPinInput').value;
+        if (pin === this.config.supervisorPin) {
+          this.supervisorAuthenticated = true;
+          this.closeModal('modalSupervisorLogin');
+          this.showSupervisorView();
+          this.showToast('Supervisão Concilig desbloqueada!', 'success');
+        } else {
+          this.showToast('PIN de Supervisão incorreto!', 'error');
+          document.getElementById('supervisorPinInput').value = '';
+          document.getElementById('supervisorPinInput').focus();
+        }
+      }
+
+      showSupervisorView() {
+        this.currentMode = 'supervisor';
+        document.getElementById('viewTerminalLogin').classList.add('hidden');
+        document.getElementById('viewTerminalActive').classList.add('hidden');
+        document.getElementById('viewSupervisor').classList.remove('hidden');
+        this.updateNavButtonStyles('supervisor');
+        this.setSupervisorTab(this.supervisorTab);
+        lucide.createIcons();
+      }
+
+      updateNavButtonStyles(activeMode) {
+        const bTerm = document.getElementById('btnSwitchToTerminal');
+        const bSup = document.getElementById('btnSwitchToSupervisor');
+        if (activeMode === 'terminal') {
+          bTerm.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-concilig-cyan text-white shadow-md shadow-concilig-cyan/25 flex items-center gap-1.5";
+          bSup.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-1.5";
+        } else {
+          bSup.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-concilig-dark text-white shadow-md flex items-center gap-1.5";
+          bTerm.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-1.5";
+        }
+      }
+
+      setSupervisorTab(tab) {
+        this.supervisorTab = tab;
+        ['monitoring', 'schedules', 'operators'].forEach(t => {
+          const btn = document.getElementById(`supTabBtn-${t}`);
+          const section = document.getElementById(`supSection${t.charAt(0).toUpperCase() + t.slice(1)}`);
+          if (t === tab) {
+            btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-concilig-dark shadow-sm transition flex items-center gap-1.5";
+            section.classList.remove('hidden');
+          } else {
+            btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5";
+            section.classList.add('hidden');
+          }
+        });
+
+        if (tab === 'monitoring') this.renderSupervisorGrid();
+        if (tab === 'schedules') {
+          this.renderSchedulesGrid();
+          this.renderQuickScheduleAssignTable();
+        }
+        if (tab === 'operators') this.renderOperatorsTable();
+
+        lucide.createIcons();
+      }
+
+      // TERMINAL DO OPERADOR
+      handleOperatorLogin(e) {
+        e.preventDefault();
+        const regInput = document.getElementById('opLoginRegistration').value.trim().toUpperCase();
+        const pinInput = document.getElementById('opLoginPin').value.trim();
+
+        const op = this.operators.find(o => 
+          o.active && (o.registration.toUpperCase() === regInput || o.name.toUpperCase().includes(regInput))
+        );
+
+        if (!op) {
+          this.showToast('Operador não cadastrado!', 'error');
+          return;
+        }
+
+        if (op.pin !== pinInput) {
+          this.showToast('Senha PIN de 4 dígitos inválida!', 'error');
+          document.getElementById('opLoginPin').value = '';
+          document.getElementById('opLoginPin').focus();
+          return;
+        }
+
+        this.currentOperator = op;
+        this.showTerminalActive();
+        this.showToast(`Bem-vindo(a), ${op.name}!`, 'success');
+      }
+
+      showTerminalActive() {
+        this.currentMode = 'terminal_active';
+        document.getElementById('viewTerminalLogin').classList.add('hidden');
+        document.getElementById('viewTerminalActive').classList.remove('hidden');
+        document.getElementById('viewSupervisor').classList.add('hidden');
+
+        const op = this.currentOperator;
+        const schedule = this.getOperatorSchedule(op);
+
+        document.getElementById('opCurrentName').textContent = op.name;
+        document.getElementById('opCurrentReg').textContent = op.registration;
+        document.getElementById('opCurrentRole').textContent = op.role;
+
+        const initials = op.name.split(' ').map(n => n[0]).slice(0, 2).join('');
+        document.getElementById('opAvatar').textContent = initials;
+
+        document.getElementById('opScheduleNameBadge').textContent = schedule.name;
+        document.getElementById('opScheduleDetails').textContent = 
+          `Horário: ${schedule.startTime} às ${schedule.endTime} • Limite Pausa: ${schedule.maxBreakMinutes} min`;
+        document.getElementById('opLateToleranceDisplay').textContent = `${this.config.lateToleranceMinutes} min`;
+
+        this.renderOperatorTerminalDetails();
+        lucide.createIcons();
+      }
+
+      operatorLogout() {
+        this.showToast('Terminal finalizado. Sessão liberada para o próximo operador.', 'info');
+        this.showTerminalLogin();
+      }
+
+      async recordAction(type) {
+        if (!this.currentOperator) return;
+
+        const now = new Date();
+        const punchId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        const punchData = {
+          operatorId: this.currentOperator.id,
+          type: type,
+          timestamp: now.toISOString()
+        };
+
+        await this.saveRecord('punches', punchId, punchData);
+
+        const msgs = {
+          in: 'Entrada registrada com sucesso!',
+          break_start: 'Pausa iniciada. Bom intervalo!',
+          break_end: 'Retorno da pausa registrado.',
+          out: 'Saída registrada. Bom descanso!'
+        };
+        this.showToast(msgs[type] || 'Batida registrada!', 'success');
+      }
+
+      getOperatorSchedule(op) {
+        const found = this.schedules.find(s => s.id === op.scheduleId);
+        return found || this.schedules[0] || DEFAULT_SCHEDULES[0];
+      }
+
+      getTodayPunchesForOperator(opId) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        return this.punches
+          .filter(p => p.operatorId === opId && p.timestamp.startsWith(todayStr))
+          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      }
+
+      getOperatorCurrentStatus(opId) {
+        const punches = this.getTodayPunchesForOperator(opId);
+        if (punches.length === 0) return { status: 'not_started', lastPunch: null };
+        const last = punches[punches.length - 1];
+        if (last.type === 'in' || last.type === 'break_end') return { status: 'working', lastPunch: last };
+        if (last.type === 'break_start') return { status: 'break', lastPunch: last };
+        if (last.type === 'out') return { status: 'completed', lastPunch: last };
+        return { status: 'unknown', lastPunch: last };
+      }
+
+      calculateOperatorMetrics(opId) {
+        const op = this.operators.find(o => o.id === opId);
+        const schedule = this.getOperatorSchedule(op);
+        const punches = this.getTodayPunchesForOperator(opId);
+
+        let totalBreakMinutes = 0;
+        let activeBreakMinutes = 0;
+        let effectiveWorkMinutes = 0;
+        let firstInTime = null;
+        let isLate = false;
+        let lateMinutes = 0;
+        let hasBreakOver = false;
+        let hasOvertime = false;
+        let breakStartTime = null;
+
+        punches.forEach(p => {
+          if (p.type === 'in' && !firstInTime) {
+            firstInTime = new Date(p.timestamp);
+            const expected = new Date(firstInTime);
+            const [shH, shM] = schedule.startTime.split(':').map(Number);
+            expected.setHours(shH, shM, 0, 0);
+
+            const diffMinutes = Math.floor((firstInTime - expected) / 60000);
+            if (diffMinutes > this.config.lateToleranceMinutes) {
+              isLate = true;
+              lateMinutes = diffMinutes;
+            }
+          }
+
+          if (p.type === 'break_start') {
+            breakStartTime = new Date(p.timestamp);
+          } else if (p.type === 'break_end' && breakStartTime) {
+            const duration = Math.floor((new Date(p.timestamp) - breakStartTime) / 60000);
+            totalBreakMinutes += duration;
+            if (duration > schedule.maxBreakMinutes) {
+              hasBreakOver = true;
+            }
+            breakStartTime = null;
+          }
+        });
+
+        if (breakStartTime) {
+          activeBreakMinutes = Math.floor((new Date() - breakStartTime) / 60000);
+          if ((totalBreakMinutes + activeBreakMinutes) > schedule.maxBreakMinutes || activeBreakMinutes > schedule.maxBreakMinutes) {
+            hasBreakOver = true;
+          }
+        }
+
+        if (firstInTime) {
+          const lastPunch = punches[punches.length - 1];
+          const endTime = lastPunch.type === 'out' ? new Date(lastPunch.timestamp) : new Date();
+          const totalSpan = Math.floor((endTime - firstInTime) / 60000);
+          effectiveWorkMinutes = Math.max(0, totalSpan - (totalBreakMinutes + activeBreakMinutes));
+
+          const scheduleMaxMinutes = (schedule.dailyHours || 8.0) * 60;
+          if (effectiveWorkMinutes > scheduleMaxMinutes) {
+            hasOvertime = true;
+          }
+        }
+
+        return {
+          schedule,
+          firstInTime,
+          isLate,
+          lateMinutes,
+          totalBreakMinutes,
+          activeBreakMinutes,
+          hasBreakOver,
+          effectiveWorkMinutes,
+          hasOvertime
+        };
+      }
+
+      renderOperatorTerminalDetails() {
+        const op = this.currentOperator;
+        const punches = this.getTodayPunchesForOperator(op.id);
+        const { status } = this.getOperatorCurrentStatus(op.id);
+        const metrics = this.calculateOperatorMetrics(op.id);
+
+        const badge = document.getElementById('opCurrentBadgeStatus');
+        if (status === 'working') {
+          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1';
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Trabalhando`;
+        } else if (status === 'break') {
+          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1';
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Em Pausa`;
+        } else if (status === 'completed') {
+          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-800';
+          badge.textContent = 'Expediente Concluído';
+        } else {
+          badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700';
+          badge.textContent = 'Ausente';
+        }
+
+        document.getElementById('btnOpClockIn').disabled = (status === 'working' || status === 'break');
+        document.getElementById('btnOpBreakStart').disabled = (status !== 'working');
+        document.getElementById('btnOpBreakEnd').disabled = (status !== 'break');
+        document.getElementById('btnOpClockOut').disabled = (status !== 'working' && status !== 'break');
+
+        document.getElementById('opTotalBreakTimeDisplay').textContent = `${metrics.totalBreakMinutes + metrics.activeBreakMinutes} min`;
+
+        const punchesContainer = document.getElementById('opPunchesList');
+        if (punches.length === 0) {
+          punchesContainer.innerHTML = `
+            <div class="text-center py-6 text-slate-400 text-xs font-semibold">
+              Nenhuma batida registrada hoje. Clique em "Entrada" para iniciar seu expediente.
+            </div>
+          `;
+          return;
+        }
+
+        const typeLabels = {
+          in: { label: 'Entrada', icon: 'door-open' },
+          break_start: { label: 'Início da Pausa', icon: 'coffee' },
+          break_end: { label: 'Retorno da Pausa', icon: 'play' },
+          out: { label: 'Saída', icon: 'log-out' }
+        };
+
+        punchesContainer.innerHTML = punches.map(p => {
+          const info = typeLabels[p.type] || { label: p.type, icon: 'clock' };
+          const time = new Date(p.timestamp).toLocaleTimeString('pt-BR');
+          return `
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-slate-200 text-slate-800 flex items-center justify-center font-bold">
+                  <i data-lucide="${info.icon}" class="w-4 h-4"></i>
+                </span>
+                <span class="font-bold text-concilig-dark">${info.label}</span>
+              </div>
+              <span class="font-mono-num font-bold text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200">${time}</span>
+            </div>
+          `;
+        }).reverse().join('');
+
+        lucide.createIcons();
+      }
+
+      // MONITORAMENTO DA SUPERVISÃO
+      setFilter(filter) {
+        this.currentFilter = filter;
+        document.querySelectorAll('.filter-tab').forEach(el => {
+          el.className = "filter-tab px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200";
+        });
+        const activeBtn = document.getElementById(`filterBtn-${filter}`);
+        if (activeBtn) {
+          activeBtn.className = "filter-tab px-3.5 py-1.5 rounded-xl text-xs font-bold transition bg-concilig-dark text-white shadow-sm";
+        }
+        this.renderSupervisorGrid();
+      }
+
+      populateScheduleFilterSelect() {
+        const sel = document.getElementById('filterScheduleSelect');
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="all">Todas as Escalas</option>';
+        this.schedules.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = `${s.name} (${s.startTime}-${s.endTime})`;
+          sel.appendChild(opt);
+        });
+        sel.value = currentVal || 'all';
+      }
+
+      renderSupervisorGrid() {
+        const query = (document.getElementById('supervisorSearch')?.value || '').toLowerCase();
+        const scheduleFilter = document.getElementById('filterScheduleSelect')?.value || 'all';
+        const tbody = document.getElementById('supervisorTableBody');
+        const emptyState = document.getElementById('supervisorTableEmpty');
+        if (!tbody) return;
+
+        let activeCount = 0;
+        let breakCount = 0;
+        let offCount = 0;
+        let lateCount = 0;
+        let breakOverCount = 0;
+        let overtimeCount = 0;
+        let totalAlertsCount = 0;
+
+        const renderedRows = [];
+
+        this.operators.forEach(op => {
+          if (!op.active) return;
+
+          const { status } = this.getOperatorCurrentStatus(op.id);
+          const metrics = this.calculateOperatorMetrics(op.id);
+
+          if (status === 'working') activeCount++;
+          else if (status === 'break') breakCount++;
+          else offCount++;
+
+          if (metrics.isLate) lateCount++;
+          if (metrics.hasBreakOver) breakOverCount++;
+          if (metrics.hasOvertime) overtimeCount++;
+
+          const hasAnyAlert = metrics.isLate || metrics.hasBreakOver || metrics.hasOvertime;
+          if (hasAnyAlert) totalAlertsCount++;
+
+          let pass = true;
+          if (this.currentFilter === 'working' && status !== 'working') pass = false;
+          if (this.currentFilter === 'break' && status !== 'break') pass = false;
+          if (this.currentFilter === 'alerts' && !hasAnyAlert) pass = false;
+          if (scheduleFilter !== 'all' && op.scheduleId !== scheduleFilter) pass = false;
+
+          const matchSearch = op.name.toLowerCase().includes(query) || op.registration.toLowerCase().includes(query) || op.role.toLowerCase().includes(query);
+          if (!matchSearch) pass = false;
+
+          if (pass) {
+            renderedRows.push({ op, status, metrics, hasAnyAlert });
+          }
+        });
+
+        document.getElementById('kpiActive').textContent = activeCount;
+        document.getElementById('kpiBreak').textContent = breakCount;
+        document.getElementById('kpiOff').textContent = offCount;
+        document.getElementById('kpiLate').textContent = lateCount;
+        document.getElementById('kpiBreakOver').textContent = breakOverCount;
+        document.getElementById('kpiOvertime').textContent = overtimeCount;
+        document.getElementById('count-all').textContent = this.operators.filter(o => o.active).length;
+        document.getElementById('count-alerts').textContent = totalAlertsCount;
+
+        if (renderedRows.length === 0) {
+          tbody.innerHTML = '';
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+
+        tbody.innerHTML = renderedRows.map(({ op, status, metrics, hasAnyAlert }) => {
+          let statusBadge = '';
+          if (status === 'working') {
+            statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Trabalhando</span>`;
+          } else if (status === 'break') {
+            statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 pulse-danger"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Em Pausa</span>`;
+          } else if (status === 'completed') {
+            statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-800">Finalizado</span>`;
+          } else {
+            statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Ausente</span>`;
+          }
+
+          const inTimeFormatted = metrics.firstInTime
+            ? metrics.firstInTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : '<span class="text-slate-400 font-semibold">--:--</span>';
+
+          const alertBadges = [];
+          if (metrics.isLate) {
+            alertBadges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200"><i data-lucide="clock" class="w-3 h-3"></i> Atraso (+${metrics.lateMinutes}m)</span>`);
+          }
+          if (metrics.hasBreakOver) {
+            alertBadges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i data-lucide="timer-off" class="w-3 h-3"></i> Estouro Pausa</span>`);
+          }
+          if (metrics.hasOvertime) {
+            const overtimeHours = ((metrics.effectiveWorkMinutes - metrics.schedule.dailyHours * 60) / 60).toFixed(1);
+            alertBadges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-concilig-cyanLight text-concilig-cyanDark border border-concilig-cyan/30"><i data-lucide="plus-circle" class="w-3 h-3 text-concilig-cyan"></i> H. Extra (+${overtimeHours}h)</span>`);
+          }
+
+          if (alertBadges.length === 0) {
+            alertBadges.push(`<span class="text-xs text-emerald-600 font-bold flex items-center justify-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Regular</span>`);
+          }
+
+          let currentBreakHtml = '<span class="text-slate-400 text-xs font-semibold">--</span>';
+          if (status === 'break') {
+            const breakExceeded = metrics.activeBreakMinutes > metrics.schedule.maxBreakMinutes;
+            currentBreakHtml = `
+              <span class="font-mono-num font-bold text-xs ${breakExceeded ? 'text-rose-600 font-black' : 'text-amber-700'}">
+                ${metrics.activeBreakMinutes} min ${breakExceeded ? '⚠️' : ''}
+              </span>
+            `;
+          }
+
+          const effHours = Math.floor(metrics.effectiveWorkMinutes / 60);
+          const effMins = metrics.effectiveWorkMinutes % 60;
+          const effectiveFormatted = `${effHours}h ${effMins.toString().padStart(2, '0')}m`;
+
+          return `
+            <tr class="hover:bg-slate-50 transition ${hasAnyAlert ? 'bg-amber-50/20' : ''}">
+              <td class="p-4">
+                <div class="font-bold text-concilig-dark">${op.name}</div>
+                <div class="text-xs text-slate-500 font-mono-num font-semibold">${op.registration} &bull; ${op.role}</div>
+              </td>
+              <td class="p-4">
+                <span class="inline-block px-2.5 py-0.5 rounded-lg bg-concilig-cyanLight text-concilig-cyanDark font-bold text-xs border border-concilig-cyan/30">
+                  ${metrics.schedule.name}
+                </span>
+                <div class="text-[11px] text-slate-500 font-mono-num mt-0.5">${metrics.schedule.startTime} às ${metrics.schedule.endTime}</div>
+              </td>
+              <td class="p-4">${statusBadge}</td>
+              <td class="p-4 font-mono-num text-xs font-bold text-slate-800">${inTimeFormatted}</td>
+              <td class="p-4 font-mono-num text-xs font-semibold text-slate-700">${metrics.totalBreakMinutes} min</td>
+              <td class="p-4">${currentBreakHtml}</td>
+              <td class="p-4 font-mono-num text-xs font-black text-slate-800">${effectiveFormatted}</td>
+              <td class="p-4 text-center">
+                <div class="flex flex-wrap items-center justify-center gap-1">${alertBadges.join('')}</div>
+              </td>
+              <td class="p-4 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <button onclick="app.viewOperatorPunchesModal('${op.id}')" class="p-2 text-slate-500 hover:text-concilig-cyan hover:bg-concilig-cyanLight rounded-xl transition" title="Ver Batidas">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                  </button>
+                  <button onclick="app.editOperator('${op.id}')" class="p-2 text-slate-500 hover:text-concilig-dark hover:bg-slate-100 rounded-xl transition" title="Editar Operador">
+                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        this.renderActivityFeed();
+        lucide.createIcons();
+      }
+
+      updateLiveMonitoringTimers() {
+        const breakOperators = this.operators.filter(op => {
+          const { status } = this.getOperatorCurrentStatus(op.id);
+          return status === 'break';
+        });
+        if (breakOperators.length > 0) {
+          this.renderSupervisorGrid();
+        }
+      }
+
+      renderActivityFeed() {
+        const feedContainer = document.getElementById('generalActivityFeed');
+        if (!feedContainer) return;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const recentPunches = [...this.punches]
+          .filter(p => p.timestamp.startsWith(todayStr))
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, 10);
+
+        if (recentPunches.length === 0) {
+          feedContainer.innerHTML = '<p class="text-slate-400 font-medium">Nenhum evento registrado hoje ainda.</p>';
+          return;
+        }
+
+        const typeDesc = {
+          in: { text: 'registrou Entrada', color: 'bg-emerald-500' },
+          break_start: { text: 'iniciou Pausa', color: 'bg-amber-500' },
+          break_end: { text: 'retornou da Pausa', color: 'bg-concilig-cyan' },
+          out: { text: 'registrou Saída', color: 'bg-slate-600' }
+        };
+
+        feedContainer.innerHTML = recentPunches.map(p => {
+          const op = this.operators.find(o => o.id === p.operatorId) || { name: 'Operador', registration: '---' };
+          const info = typeDesc[p.type] || { text: 'marcou ponto', color: 'bg-slate-400' };
+          const time = new Date(p.timestamp).toLocaleTimeString('pt-BR');
+
+          return `
+            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full ${info.color}"></span>
+                <span class="font-bold text-concilig-dark">${op.name}</span>
+                <span class="text-slate-500 font-medium">${info.text}</span>
+              </div>
+              <span class="font-mono-num font-bold text-slate-700 bg-white px-2 py-0.5 rounded-lg border border-slate-200">${time}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // GESTÃO DE ESCALAS
+      renderSchedulesGrid() {
+        const grid = document.getElementById('schedulesCardsGrid');
+        if (!grid) return;
+
+        grid.innerHTML = this.schedules.map(sch => {
+          const opCount = this.operators.filter(o => o.active && o.scheduleId === sch.id).length;
+          return `
+            <div class="bg-white rounded-3xl border border-concilig-border p-5 sm:p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="px-3 py-1 rounded-xl text-xs font-black border border-concilig-cyan/30 bg-concilig-cyanLight text-concilig-cyanDark">
+                    ${sch.type}
+                  </span>
+                  <div class="flex items-center gap-1">
+                    <button onclick="app.editSchedule('${sch.id}')" class="p-1.5 text-slate-400 hover:text-concilig-cyan hover:bg-slate-100 rounded-lg transition" title="Editar">
+                      <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="app.deleteSchedule('${sch.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition" title="Excluir">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <h4 class="text-base font-black text-concilig-dark">${sch.name}</h4>
+                <p class="text-xs text-slate-500 font-medium mt-0.5">${sch.daysDesc || 'Dias regulares'}</p>
+
+                <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+                  <div class="flex items-center justify-between">
+                    <span class="text-slate-500 font-medium">Horário Previsto:</span>
+                    <span class="font-mono-num font-bold text-concilig-dark">${sch.startTime} às ${sch.endTime}</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-slate-500 font-medium">Limite de Pausa:</span>
+                    <span class="font-mono-num font-bold text-amber-700">${sch.maxBreakMinutes} minutos</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-slate-500 font-medium">Carga Diária:</span>
+                    <span class="font-mono-num font-bold text-slate-700">${sch.dailyHours} horas</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span class="font-semibold text-slate-500">Operadores alocados:</span>
+                <span class="px-2.5 py-0.5 rounded-full font-black bg-slate-100 text-concilig-dark">${opCount}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+        lucide.createIcons();
+      }
+
+      renderQuickScheduleAssignTable() {
+        const tbody = document.getElementById('quickScheduleAssignBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = this.operators.filter(o => o.active).map(op => {
+          const currentSch = this.getOperatorSchedule(op);
+          const optionsHtml = this.schedules.map(s => 
+            `<option value="${s.id}" ${s.id === op.scheduleId ? 'selected' : ''}>${s.name} (${s.startTime}-${s.endTime})</option>`
+          ).join('');
+
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3.5 font-bold text-concilig-dark">${op.name}</td>
+              <td class="p-3.5 font-mono-num font-semibold text-slate-600">${op.registration}</td>
+              <td class="p-3.5 text-slate-600 font-medium">${op.role}</td>
+              <td class="p-3.5">
+                <span class="px-2.5 py-1 rounded-lg bg-concilig-cyanLight text-concilig-cyanDark font-bold border border-concilig-cyan/30">
+                  ${currentSch.name}
+                </span>
+              </td>
+              <td class="p-3.5 font-mono-num font-bold text-slate-700">${currentSch.startTime} - ${currentSch.endTime}</td>
+              <td class="p-3.5">
+                <select onchange="app.quickChangeOperatorSchedule('${op.id}', this.value)" class="w-full px-3 py-1.5 text-xs border rounded-xl border-slate-300 bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-concilig-cyan">
+                  ${optionsHtml}
+                </select>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      async quickChangeOperatorSchedule(opId, newScheduleId) {
+        const op = this.operators.find(o => o.id === opId);
+        if (!op) return;
+        const updated = { ...op, scheduleId: newScheduleId };
+        const { id, ...data } = updated;
+        await this.saveRecord('operators', opId, data);
+        this.showToast(`Escala de ${op.name} atualizada na nuvem!`, 'success');
+      }
+
+      openNewScheduleModal() {
+        document.getElementById('scheduleModalTitle').innerHTML = `<i data-lucide="calendar-plus" class="w-5 h-5 text-concilig-cyan"></i><span>Nova Escala Concilig</span>`;
+        document.getElementById('formScheduleId').value = '';
+        document.getElementById('formScheduleName').value = '';
+        document.getElementById('formScheduleType').value = '5x2';
+        document.getElementById('formScheduleStart').value = '08:00';
+        document.getElementById('formScheduleEnd').value = '17:00';
+        document.getElementById('formScheduleMaxBreak').value = '20';
+        document.getElementById('formScheduleDailyHours').value = '8.0';
+        document.getElementById('formScheduleDays').value = 'Segunda a Sexta';
+        this.openModal('modalSchedule');
+        lucide.createIcons();
+      }
+
+      editSchedule(scheduleId) {
+        const sch = this.schedules.find(s => s.id === scheduleId);
+        if (!sch) return;
+        document.getElementById('scheduleModalTitle').innerHTML = `<i data-lucide="edit-2" class="w-5 h-5 text-concilig-cyan"></i><span>Editar Escala</span>`;
+        document.getElementById('formScheduleId').value = sch.id;
+        document.getElementById('formScheduleName').value = sch.name;
+        document.getElementById('formScheduleType').value = sch.type || '5x2';
+        document.getElementById('formScheduleStart').value = sch.startTime;
+        document.getElementById('formScheduleEnd').value = sch.endTime;
+        document.getElementById('formScheduleMaxBreak').value = sch.maxBreakMinutes;
+        document.getElementById('formScheduleDailyHours').value = sch.dailyHours;
+        document.getElementById('formScheduleDays').value = sch.daysDesc || '';
+        this.openModal('modalSchedule');
+        lucide.createIcons();
+      }
+
+      async saveSchedule(e) {
+        e.preventDefault();
+        const id = document.getElementById('formScheduleId').value || ('sch_' + Date.now());
+        const data = {
+          name: document.getElementById('formScheduleName').value.trim(),
+          type: document.getElementById('formScheduleType').value,
+          startTime: document.getElementById('formScheduleStart').value,
+          endTime: document.getElementById('formScheduleEnd').value,
+          maxBreakMinutes: Number(document.getElementById('formScheduleMaxBreak').value),
+          dailyHours: Number(document.getElementById('formScheduleDailyHours').value),
+          daysDesc: document.getElementById('formScheduleDays').value.trim()
+        };
+
+        await this.saveRecord('schedules', id, data);
+        this.closeModal('modalSchedule');
+        this.showToast('Escala sincronizada com sucesso!', 'success');
+      }
+
+      async deleteSchedule(scheduleId) {
+        if (this.schedules.length <= 1) {
+          this.showToast('Você deve manter ao menos uma escala no sistema.', 'error');
+          return;
+        }
+
+        const linkedOps = this.operators.filter(o => o.active && o.scheduleId === scheduleId);
+        let warning = "Deseja realmente excluir esta escala?";
+        if (linkedOps.length > 0) {
+          warning = `Existem ${linkedOps.length} colaboradores nessa escala. Eles serão migrados para a escala padrão. Prosseguir?`;
+        }
+
+        if (!confirmDialog(warning)) return;
+
+        const fallback = this.schedules.find(s => s.id !== scheduleId).id;
+        for (const op of linkedOps) {
+          const { id, ...data } = { ...op, scheduleId: fallback };
+          await this.saveRecord('operators', op.id, data);
+        }
+
+        await this.deleteRecord('schedules', scheduleId);
+        this.showToast('Escala removida!', 'info');
+      }
+
+      // ATRIBUIÇÃO EM LOTE
+      openBatchScheduleModal() {
+        const select = document.getElementById('batchTargetScheduleSelect');
+        select.innerHTML = this.schedules.map(s => 
+          `<option value="${s.id}">${s.name} (${s.startTime} às ${s.endTime})</option>`
+        ).join('');
+
+        const container = document.getElementById('batchOperatorsCheckboxes');
+        container.innerHTML = this.operators.filter(o => o.active).map(op => `
+          <label class="flex items-center gap-2 p-2 hover:bg-white rounded-xl cursor-pointer">
+            <input type="checkbox" name="batchOpSelect" value="${op.id}" class="rounded text-concilig-cyan focus:ring-concilig-cyan">
+            <span class="font-bold text-slate-800">${op.name}</span>
+            <span class="text-slate-400 font-mono-num text-[11px]">(${op.registration})</span>
+          </label>
+        `).join('');
+
+        this.openModal('modalBatchSchedule');
+        lucide.createIcons();
+      }
+
+      toggleSelectAllBatch(checked) {
+        document.querySelectorAll('input[name="batchOpSelect"]').forEach(cb => cb.checked = checked);
+      }
+
+      async applyBatchSchedule(e) {
+        e.preventDefault();
+        const targetScheduleId = document.getElementById('batchTargetScheduleSelect').value;
+        const selectedCheckboxes = Array.from(document.querySelectorAll('input[name="batchOpSelect"]:checked'));
+
+        if (selectedCheckboxes.length === 0) {
+          this.showToast('Selecione ao menos um operador!', 'error');
+          return;
+        }
+
+        const selectedIds = selectedCheckboxes.map(cb => cb.value);
+        for (const id of selectedIds) {
+          const op = this.operators.find(o => o.id === id);
+          if (op) {
+            const { id: opId, ...data } = { ...op, scheduleId: targetScheduleId };
+            await this.saveRecord('operators', op.id, data);
+          }
+        }
+
+        this.closeModal('modalBatchSchedule');
+        this.showToast(`Escala aplicada a ${selectedIds.length} operador(es)!`, 'success');
+      }
+
+      // GESTÃO DE OPERADORES
+      renderOperatorsTable() {
+        const tbody = document.getElementById('operatorsManagementTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = this.operators.filter(o => o.active).map(op => {
+          const sch = this.getOperatorSchedule(op);
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-4 font-bold text-concilig-dark">${op.name}</td>
+              <td class="p-4 font-mono-num text-slate-700 font-bold">${op.registration}</td>
+              <td class="p-4 text-slate-600 font-medium">${op.role}</td>
+              <td class="p-4">
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-concilig-cyanLight text-concilig-cyanDark border border-concilig-cyan/30">
+                  ${sch.name} (${sch.startTime} - ${sch.endTime})
+                </span>
+              </td>
+              <td class="p-4 font-mono-num font-bold text-slate-700">
+                <span class="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">${op.pin}</span>
+              </td>
+              <td class="p-4 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <button onclick="app.editOperator('${op.id}')" class="p-2 text-slate-500 hover:text-concilig-dark hover:bg-slate-100 rounded-xl transition" title="Editar">
+                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                  </button>
+                  <button onclick="app.deleteOperator('${op.id}')" class="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition" title="Excluir">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+        lucide.createIcons();
+      }
+
+      openOperatorModal() {
+        document.getElementById('opModalTitle').innerHTML = `<i data-lucide="user-plus" class="w-5 h-5 text-concilig-cyan"></i><span>Cadastrar Operador Concilig</span>`;
+        document.getElementById('formOpId').value = '';
+        document.getElementById('formOpName').value = '';
+        document.getElementById('formOpReg').value = `OP-${100 + this.operators.length + 1}`;
+        document.getElementById('formOpRole').value = 'Operador de Atendimento';
+        document.getElementById('formOpPin').value = '1234';
+
+        const sel = document.getElementById('formOpScheduleId');
+        sel.innerHTML = this.schedules.map(s => `<option value="${s.id}">${s.name} (${s.startTime}-${s.endTime})</option>`).join('');
+
+        this.openModal('modalOperator');
+        lucide.createIcons();
+      }
+
+      editOperator(opId) {
+        const op = this.operators.find(o => o.id === opId);
+        if (!op) return;
+
+        document.getElementById('opModalTitle').innerHTML = `<i data-lucide="edit-3" class="w-5 h-5 text-concilig-cyan"></i><span>Editar Operador</span>`;
+        document.getElementById('formOpId').value = op.id;
+        document.getElementById('formOpName').value = op.name;
+        document.getElementById('formOpReg').value = op.registration;
+        document.getElementById('formOpRole').value = op.role;
+        document.getElementById('formOpPin').value = op.pin;
+
+        const sel = document.getElementById('formOpScheduleId');
+        sel.innerHTML = this.schedules.map(s => `<option value="${s.id}">${s.name} (${s.startTime}-${s.endTime})</option>`).join('');
+        sel.value = op.scheduleId;
+
+        this.openModal('modalOperator');
+        lucide.createIcons();
+      }
+
+      async saveOperator(e) {
+        e.preventDefault();
+        const id = document.getElementById('formOpId').value || ('op_' + Date.now());
+        const pin = document.getElementById('formOpPin').value.trim();
+        const reg = document.getElementById('formOpReg').value.trim().toUpperCase();
+
+        if (pin.length !== 4 || isNaN(pin)) {
+          this.showToast('O PIN deve conter exatamente 4 dígitos!', 'error');
+          return;
+        }
+
+        const conflict = this.operators.find(o => o.registration === reg && o.id !== id);
+        if (conflict) {
+          this.showToast('Já existe um operador com essa matrícula!', 'error');
+          return;
+        }
+
+        const data = {
+          name: document.getElementById('formOpName').value.trim(),
+          registration: reg,
+          role: document.getElementById('formOpRole').value.trim(),
+          scheduleId: document.getElementById('formOpScheduleId').value,
+          pin: pin,
+          active: true
+        };
+
+        await this.saveRecord('operators', id, data);
+        this.closeModal('modalOperator');
+        this.showToast('Operador sincronizado com sucesso!', 'success');
+      }
+
+      async deleteOperator(opId) {
+        const op = this.operators.find(o => o.id === opId);
+        if (!op) return;
+        if (!confirmDialog(`Remover o operador ${op.name} (${op.registration})?`)) return;
+
+        const { id, ...data } = { ...op, active: false };
+        await this.saveRecord('operators', op.id, data);
+        this.showToast('Operador desativado!', 'info');
+      }
+
+      // MODAL HISTÓRICO BATIDAS
+      viewOperatorPunchesModal(opId) {
+        const op = this.operators.find(o => o.id === opId);
+        if (!op) return;
+
+        const sch = this.getOperatorSchedule(op);
+        document.getElementById('modalPunchesOpName').textContent = op.name;
+        document.getElementById('modalPunchesOpMeta').textContent = `Matrícula: ${op.registration} | Escala: ${sch.name} | PIN: ${op.pin}`;
+
+        const punches = this.getTodayPunchesForOperator(opId);
+        const container = document.getElementById('modalPunchesList');
+
+        if (punches.length === 0) {
+          container.innerHTML = '<p class="text-xs text-slate-400 py-4 text-center font-medium">Nenhuma marcação realizada hoje.</p>';
+        } else {
+          const typeMap = {
+            in: { title: 'Entrada', color: 'emerald' },
+            break_start: { title: 'Início Pausa', color: 'amber' },
+            break_end: { title: 'Retorno Pausa', color: 'concilig-cyanDark' },
+            out: { title: 'Saída', color: 'slate' }
+          };
+
+          container.innerHTML = punches.map(p => {
+            const meta = typeMap[p.type] || { title: p.type, color: 'slate' };
+            const time = new Date(p.timestamp).toLocaleTimeString('pt-BR');
+            return `
+              <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                <span class="font-bold text-${meta.color} bg-slate-100 px-2.5 py-1 rounded-lg">${meta.title}</span>
+                <span class="font-mono-num font-bold text-slate-800">${time}</span>
+              </div>
+            `;
+          }).join('');
+        }
+
+        this.openModal('modalOperatorPunches');
+        lucide.createIcons();
+      }
+
+      // CONFIGURAÇÕES GERAIS E NUVEM
+      openSettingsModal() {
+        document.getElementById('cfgLateTolerance').value = this.config.lateToleranceMinutes || 10;
+        document.getElementById('cfgSupervisorPin').value = this.config.supervisorPin || '9999';
+        this.openModal('modalSettings');
+      }
+
+      async saveGlobalSettings(e) {
+        e.preventDefault();
+        const pin = document.getElementById('cfgSupervisorPin').value.trim();
+        if (pin.length !== 4 || isNaN(pin)) {
+          this.showToast('O PIN da supervisão deve conter 4 números!', 'error');
+          return;
+        }
+
+        const data = {
+          lateToleranceMinutes: Number(document.getElementById('cfgLateTolerance').value),
+          supervisorPin: pin
+        };
+
+        await this.saveRecord('config', 'general', data);
+        this.closeModal('modalSettings');
+        this.showToast('Configurações salvas e sincronizadas!', 'success');
+      }
+
+      openFirebaseConfigModal() {
+        const raw = this.firebaseConfig ? JSON.stringify(this.firebaseConfig, null, 2) : '';
+        document.getElementById('firebaseRawInput').value = raw;
+        this.openModal('modalFirebaseConfig');
+      }
+
+      async saveFirebaseConfig(e) {
+        e.preventDefault();
+        const raw = document.getElementById('firebaseRawInput').value.trim();
+        try {
+          // Extrai o objeto JSON mesmo se colado como JS
+          const cleaned = raw.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2": ');
+          const parsed = JSON.parse(raw.startsWith('{') ? raw : `{${cleaned}}`);
+
+          localStorage.setItem('concilig_custom_firebase_config', JSON.stringify(parsed));
+          this.firebaseConfig = parsed;
+          this.closeModal('modalFirebaseConfig');
+          this.showToast('Credenciais salvas! Conectando...', 'info');
+
+          // Reinicia conexão
+          await this.initFirebase();
+        } catch (err) {
+          this.showToast('Formato JSON inválido. Verifique o código colado.', 'error');
+        }
+      }
+
+      clearFirebaseConfig() {
+        localStorage.removeItem('concilig_custom_firebase_config');
+        this.firebaseConfig = null;
+        this.isCloudConnected = false;
+        this.closeModal('modalFirebaseConfig');
+        this.fallbackToLocalStorage();
+        this.updateSyncStatus('local', 'Modo Local Ativo');
+        this.showToast('Configuração do Firebase removida. Modo local ativado.', 'info');
+      }
+
+      async seedSampleDataIfEmpty() {
+        if (!confirmDialog('Deseja recarregar a equipe de exemplo da Concilig?')) return;
+        for (const s of DEFAULT_SCHEDULES) {
+          const { id, ...data } = s;
+          await this.saveRecord('schedules', id, data);
+        }
+        for (const o of DEFAULT_OPERATORS) {
+          const { id, ...data } = o;
+          await this.saveRecord('operators', id, data);
+        }
+        this.showToast('Equipe de exemplo sincronizada!', 'success');
+      }
+
+      exportDataCSV() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Matrícula;Nome;Cargo;Escala;Horário Previsto;Horário Entrada;Total Pausa (min);Jornada Efetiva (min);Status Atraso;Status Estouro Pausa;Status Hora Extra\r\n";
+
+        this.operators.filter(o => o.active).forEach(op => {
+          const metrics = this.calculateOperatorMetrics(op.id);
+          const inTime = metrics.firstInTime ? metrics.firstInTime.toLocaleTimeString('pt-BR') : '--';
+          const late = metrics.isLate ? `Atraso (+${metrics.lateMinutes}m)` : 'OK';
+          const breakOver = metrics.hasBreakOver ? 'Estourada' : 'OK';
+          const overtime = metrics.hasOvertime ? 'Sim' : 'Não';
+
+          const row = [
+            op.registration,
+            `"${op.name}"`,
+            `"${op.role}"`,
+            `"${metrics.schedule.name}"`,
+            `"${metrics.schedule.startTime}-${metrics.schedule.endTime}"`,
+            inTime,
+            metrics.totalBreakMinutes,
+            metrics.effectiveWorkMinutes,
+            late,
+            breakOver,
+            overtime
+          ].join(";");
+
+          csvContent += row + "\r\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `concilig_ponto_escalas_${todayStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        this.showToast('Relatório CSV exportado com sucesso!', 'success');
+      }
+
+      openModal(id) {
+        const m = document.getElementById(id);
+        if (m) {
+          m.classList.remove('hidden');
+          m.classList.add('flex');
+        }
+      }
+
+      closeModal(id) {
+        const m = document.getElementById(id);
+        if (m) {
+          m.classList.add('hidden');
+          m.classList.remove('flex');
+        }
+      }
+
+      showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const colors = {
+          success: 'bg-concilig-cyan text-white shadow-concilig-cyan/30',
+          error: 'bg-rose-600 text-white',
+          info: 'bg-concilig-dark text-white'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `${colors[type] || colors.info} px-4 py-3 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 transform transition-all duration-300 translate-y-2 pointer-events-auto`;
+        toast.innerHTML = `<span>${message}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => toast.classList.remove('translate-y-2'), 10);
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'scale-95');
+          setTimeout(() => toast.remove(), 300);
+        }, 3500);
+      }
+    }
+
+    function confirmDialog(msg) {
+      return window.confirm(msg);
+    }
+
+    // Instancia e expõe globalmente para os handlers onclick do HTML
+    const conciligApp = new ConciligApp();
+    window.app = conciligApp;
+
+    window.addEventListener('load', () => {
+      conciligApp.init();
+    });
+  </script>
+</body>
+</html>
